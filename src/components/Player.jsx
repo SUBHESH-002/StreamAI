@@ -1,14 +1,16 @@
 import { useEffect, useRef } from 'react';
 
-export default function YouTubePlayer({ videoId, isPlaying, onStateChange }) {
+export default function YouTubePlayer({ videoId, isPlaying, onStateChange, onProgress, onError }) {
   const playerRef = useRef(null);
   const isReadyRef = useRef(false);
   const onStateChangeRef = useRef(onStateChange);
+  const onProgressRef = useRef(onProgress);
+  const onErrorRef = useRef(onError);
 
-  // Keep callback ref up to date to prevent stale closures
-  useEffect(() => {
-    onStateChangeRef.current = onStateChange;
-  }, [onStateChange]);
+  // Keep callback refs up to date to prevent stale closures
+  useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
+  useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
 
   useEffect(() => {
     // Only load the script once
@@ -21,8 +23,8 @@ export default function YouTubePlayer({ videoId, isPlaying, onStateChange }) {
 
     window.onYouTubeIframeAPIReady = () => {
       playerRef.current = new window.YT.Player('yt-player', {
-        height: '300', // Larger dimensions help bypass ad/autoplay-blockers
-        width: '300',
+        height: '100%', 
+        width: '100%',
         videoId,
         playerVars: { 
           autoplay: 1,
@@ -43,6 +45,10 @@ export default function YouTubePlayer({ videoId, isPlaying, onStateChange }) {
           },
           onStateChange: (e) => {
             if (onStateChangeRef.current) onStateChangeRef.current(e);
+          },
+          onError: (e) => {
+            console.error("YouTube Player Error:", e.data);
+            if (onErrorRef.current) onErrorRef.current(e.data);
           }
         },
       });
@@ -69,9 +75,31 @@ export default function YouTubePlayer({ videoId, isPlaying, onStateChange }) {
     }
   }, [isPlaying]);
 
+  // Progress Tracker
+  useEffect(() => {
+    let interval;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        if (isReadyRef.current && playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+          const currentTime = playerRef.current.getCurrentTime() || 0;
+          const duration = playerRef.current.getDuration() || 0;
+          if (duration > 0 && onProgressRef.current) {
+            onProgressRef.current({
+              current: currentTime,
+              duration: duration,
+              percent: (currentTime / duration) * 100
+            });
+          }
+        }
+      }, 500);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
   return (
-    <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', width: '300px', height: '300px', opacity: 0.01, overflow: 'hidden', pointerEvents: 'none' }}>
-      <div id="yt-player" />
+    // Fixed full screen behind app to prevent any browser throttling of invisible elements
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -100, opacity: 0.01, pointerEvents: 'none' }}>
+      <div id="yt-player" style={{ width: '100%', height: '100%' }} />
     </div>
   );
 }

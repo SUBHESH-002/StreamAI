@@ -1,14 +1,25 @@
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Mic2, ListMusic, MonitorSpeaker } from 'lucide-react';
 
+const formatTime = (seconds) => {
+  if (!seconds || isNaN(seconds)) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+};
+
 export default function PlayerControls({
   isPlaying,
   onPlayPause,
-  progress = 0,
+  progress = { current: 0, duration: 0, percent: 0 },
   onSeek,
   currentSong,
   onNext,
   onPrevious
 }) {
+  const percent = typeof progress === 'object' ? progress.percent : progress;
+  const currentTxt = typeof progress === 'object' ? formatTime(progress.current) : "0:00";
+  const durationTxt = typeof progress === 'object' && progress.duration > 0 ? formatTime(progress.duration) : "0:00";
+
   return (
     <div className="fixed bottom-0 left-0 right-0 h-24 bg-[#181818]/95 backdrop-blur-2xl border-t border-white/5 px-4 flex items-center justify-between text-white z-50">
       
@@ -17,19 +28,17 @@ export default function PlayerControls({
         {currentSong ? (
           <>
             <img 
-              src={currentSong.coverUrl || "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=150&h=150&fit=crop"} 
+              src={currentSong.thumbnail || "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=150&h=150&fit=crop"} 
               alt="Cover" 
               className="w-14 h-14 rounded-md shadow-lg object-cover"
             />
-            <div className="flex flex-col">
-              <span className="font-semibold text-sm hover:underline cursor-pointer line-clamp-1">
-                {currentSong.title || "Unknown Title"}
-              </span>
-              <span className="text-xs text-gray-400 hover:underline cursor-pointer line-clamp-1 mt-1">
+            <div className="flex flex-col overflow-hidden whitespace-nowrap">
+              <span className="font-semibold text-sm hover:underline cursor-pointer truncate" dangerouslySetInnerHTML={{ __html: currentSong.title || "Unknown Title" }}></span>
+              <span className="text-xs text-gray-400 hover:underline cursor-pointer truncate mt-1">
                 {currentSong.artist || "Unknown Artist"}
               </span>
             </div>
-            <button className="ml-2 text-gray-400 hover:text-white transition-colors">
+            <button className="ml-2 text-gray-400 hover:text-white transition-colors shrink-0">
               <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M1.69 2A4.582 4.582 0 0 1 8 2.023 4.583 4.583 0 0 1 11.88.817h.002a4.618 4.618 0 0 1 3.782 3.65v.003a4.543 4.543 0 0 1-1.011 3.84L9.35 14.629a1.765 1.765 0 0 1-2.093.464 1.762 1.762 0 0 1-.605-.463L1.348 8.309A4.582 4.582 0 0 1 1.689 2Zm3.158.252A3.3 3.3 0 0 0 2.49 7.337l.005.005L7.8 13.664a.264.264 0 0 0 .311.069.262.262 0 0 0 .09-.069l5.312-6.33a3.043 3.043 0 0 0 .68-2.573 3.118 3.118 0 0 0-2.551-2.463 3.079 3.079 0 0 0-2.612.816l-.04.061a.75.75 0 0 1-1.284-.081l-.086-.084a3.083 3.083 0 0 0-2.772-.806Z"></path></svg>
             </button>
           </>
@@ -66,7 +75,7 @@ export default function PlayerControls({
 
         {/* Progress Bar */}
         <div className="w-full flex items-center gap-2 text-[11px] text-gray-400 font-medium tracking-wide">
-          <span className="w-8 text-right">0:00</span>
+          <span className="w-8 text-right">{currentTxt}</span>
           <div 
             className="h-1.5 flex-1 bg-white/20 rounded-full cursor-pointer relative group flex items-center"
             onClick={(e) => {
@@ -77,14 +86,14 @@ export default function PlayerControls({
           >
             <div 
               className="absolute top-0 left-0 h-full bg-white group-hover:bg-[#1db954] rounded-full transition-colors"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${percent}%` }}
             ></div>
             <div 
               className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 shadow transition-opacity"
-              style={{ left: `${progress}%`, transform: 'translate(-50%, -50%)' }}
+              style={{ left: `${percent}%`, transform: 'translate(-50%, -50%)' }}
             ></div>
           </div>
-          <span className="w-8">3:45</span>
+          <span className="w-8">{durationTxt}</span>
         </div>
       </div>
 

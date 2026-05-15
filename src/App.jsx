@@ -15,7 +15,7 @@ function App() {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  const [progress, setProgress] = useState(0);
+  const [playbackTime, setPlaybackTime] = useState({ current: 0, duration: 0, percent: 0 });
 
   // Auth Effect
   useEffect(() => {
@@ -36,11 +36,6 @@ function App() {
   const handlePlayPause = () => {
     if (!currentTrack) return;
     setIsPlaying(!isPlaying);
-    // Note: The YouTube iframe API handles actual play/pause via state changes
-    // But since our Player.jsx currently only takes `videoId` and `autoplay: 1`,
-    // it will automatically play when loaded. Pausing it requires adding refs,
-    // which we'll manage via the player state callbacks if possible.
-    // For simplicity in this tutorial, we will just toggle the state visually.
   };
 
   const handleNext = () => {
@@ -56,14 +51,12 @@ function App() {
   };
 
   const handlePlayTrack = (track) => {
-    // Add to queue and play immediately
     const newQueue = [...queue, track];
     setQueue(newQueue);
     setCurrentTrackIndex(newQueue.length - 1);
     setIsPlaying(true);
-    setSearchResults([]); // clear results
+    setSearchResults([]); 
     
-    // Save to history
     if (user) {
       addToHistory(user.uid, track).catch(console.error);
     }
@@ -71,9 +64,8 @@ function App() {
 
   const handleAddToQueue = (tracks) => {
     setQueue(prev => [...prev, ...tracks]);
-    // If nothing is playing, start playing the first added track
     if (currentTrackIndex === -1 && tracks.length > 0) {
-      setCurrentTrackIndex(queue.length); // will be the first of the newly added
+      setCurrentTrackIndex(queue.length);
       setIsPlaying(true);
       if (user) {
         addToHistory(user.uid, tracks[0]).catch(console.error);
@@ -81,20 +73,9 @@ function App() {
     }
   };
 
-  // Fake progress bar interval for demo purposes since YouTubePlayer doesn't expose progress yet
+  // Reset playback time when track changes
   useEffect(() => {
-    let interval;
-    if (isPlaying && currentTrack) {
-      interval = setInterval(() => {
-        setProgress(p => (p >= 100 ? 0 : p + 0.5));
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying, currentTrack]);
-
-  // When song changes, reset progress
-  useEffect(() => {
-    setProgress(0);
+    setPlaybackTime({ current: 0, duration: 0, percent: 0 });
   }, [currentTrackIndex]);
 
   return (
@@ -162,9 +143,9 @@ function App() {
                       )}
                     </div>
                     <img src={track.thumbnail} alt={track.title} className="w-12 h-12 rounded-md object-cover shadow-md" />
-                    <div className="flex flex-col flex-1">
-                      <span className={`font-semibold ${i === currentTrackIndex ? 'text-[#1db954]' : 'text-white'}`} dangerouslySetInnerHTML={{ __html: track.title }}></span>
-                      <span className="text-sm text-gray-400 font-medium">{track.artist}</span>
+                    <div className="flex flex-col flex-1 overflow-hidden whitespace-nowrap">
+                      <span className={`font-semibold truncate ${i === currentTrackIndex ? 'text-[#1db954]' : 'text-white'}`} dangerouslySetInnerHTML={{ __html: track.title }}></span>
+                      <span className="text-sm text-gray-400 font-medium truncate">{track.artist}</span>
                     </div>
                   </div>
                 ))}
@@ -189,6 +170,13 @@ function App() {
       <YouTubePlayer 
         videoId={currentTrack?.videoId} 
         isPlaying={isPlaying}
+        onProgress={setPlaybackTime}
+        onError={(code) => {
+          // If embedding is blocked (101 or 150), skip to next song automatically
+          if (code === 101 || code === 150) {
+            handleNext();
+          }
+        }}
         onStateChange={(e) => {
           // YT.PlayerState.ENDED = 0, PLAYING = 1, PAUSED = 2
           if (e.data === 0) {
@@ -205,11 +193,11 @@ function App() {
       <PlayerControls 
         isPlaying={isPlaying}
         onPlayPause={handlePlayPause}
-        progress={progress}
+        progress={playbackTime}
         currentSong={currentTrack}
         onNext={handleNext}
         onPrevious={handlePrevious}
-        onSeek={(p) => setProgress(p)}
+        onSeek={(p) => setPlaybackTime(prev => ({...prev, percent: p}))}
       />
     </div>
   );
