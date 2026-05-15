@@ -1,0 +1,17 @@
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCCcfrCFaP5BN1HxLUhl4YxB6ZXd5-LE_I",
+  authDomain: "streamai-10e00.firebaseapp.com",
+  projectId: "streamai-10e00",
+  storageBucket: "streamai-10e00.firebasestorage.app",
+  messagingSenderId: "528637181495",
+  appId: "1:528637181495:web:962662c3cfd06cc13cc9b2"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
