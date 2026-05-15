@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 
-export default function YouTubePlayer({ videoId, onStateChange }) {
+export default function YouTubePlayer({ videoId, isPlaying, onStateChange }) {
   const playerRef = useRef(null);
+  const isReadyRef = useRef(false);
 
   useEffect(() => {
     // Only load the script once
@@ -12,29 +13,55 @@ export default function YouTubePlayer({ videoId, onStateChange }) {
       document.body.appendChild(tag);
     }
 
-    // Attach the callback to window. This will fire when the API is loaded.
     window.onYouTubeIframeAPIReady = () => {
       playerRef.current = new window.YT.Player('yt-player', {
-        height: '0',
-        width: '0',
+        height: '10',
+        width: '10',
         videoId,
-        playerVars: { autoplay: 1 },
-        events: { onStateChange },
+        playerVars: { 
+          autoplay: 1,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          modestbranding: 1
+        },
+        events: { 
+          onReady: () => {
+            isReadyRef.current = true;
+            if (videoId) {
+              playerRef.current.loadVideoById(videoId);
+            }
+          },
+          onStateChange 
+        },
       });
     };
 
-    // If the API is already loaded but component remounts, initialize player manually
     if (window.YT && window.YT.Player && !playerRef.current) {
         window.onYouTubeIframeAPIReady();
     }
   }, []);
 
   useEffect(() => {
-    if (playerRef.current && typeof playerRef.current.loadVideoById === 'function' && videoId) {
+    if (isReadyRef.current && playerRef.current && typeof playerRef.current.loadVideoById === 'function' && videoId) {
       playerRef.current.loadVideoById(videoId);
     }
   }, [videoId]);
 
-  // Hidden div — we only want the audio
-  return <div id="yt-player" style={{ display: 'none' }} />;
+  useEffect(() => {
+    if (isReadyRef.current && playerRef.current && typeof playerRef.current.playVideo === 'function') {
+      if (isPlaying) {
+        playerRef.current.playVideo();
+      } else {
+        playerRef.current.pauseVideo();
+      }
+    }
+  }, [isPlaying]);
+
+  // Using absolute positioning off-screen instead of display: none to ensure YT API initializes properly
+  return (
+    <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', width: '10px', height: '10px', overflow: 'hidden', pointerEvents: 'none' }}>
+      <div id="yt-player" />
+    </div>
+  );
 }

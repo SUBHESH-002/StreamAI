@@ -188,6 +188,7 @@ function App() {
       {/* Hidden YouTube Player */}
       <YouTubePlayer 
         videoId={currentTrack?.videoId} 
+        isPlaying={isPlaying}
         onStateChange={(e) => {
           // YT.PlayerState.ENDED = 0, PLAYING = 1, PAUSED = 2
           if (e.data === 0) {
