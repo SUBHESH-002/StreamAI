@@ -23,6 +23,7 @@ export default function YouTubePlayer({ videoId, isPlaying, onStateChange, onPro
 
     window.onYouTubeIframeAPIReady = () => {
       playerRef.current = new window.YT.Player('yt-player', {
+        host: 'https://www.youtube-nocookie.com',
         height: '100%', 
         width: '100%',
         videoId,
