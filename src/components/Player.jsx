@@ -1,106 +1,54 @@
-import { useEffect, useRef } from 'react';
+import { useRef, useEffect } from 'react';
+import ReactPlayer from 'react-player/youtube';
 
 export default function YouTubePlayer({ videoId, isPlaying, onStateChange, onProgress, onError }) {
-  const playerRef = useRef(null);
-  const isReadyRef = useRef(false);
-  const onStateChangeRef = useRef(onStateChange);
+  const durationRef = useRef(0);
+  
+  // We need to keep refs to our callbacks so they don't cause infinite re-renders or stale closures inside ReactPlayer
   const onProgressRef = useRef(onProgress);
-  const onErrorRef = useRef(onError);
-
-  // Keep callback refs up to date to prevent stale closures
-  useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
   useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
-  useEffect(() => { onErrorRef.current = onError; }, [onError]);
 
-  useEffect(() => {
-    // Only load the script once
-    if (!document.getElementById('yt-script')) {
-      const tag = document.createElement('script');
-      tag.id = 'yt-script';
-      tag.src = 'https://www.youtube.com/iframe_api';
-      document.body.appendChild(tag);
-    }
-
-    window.onYouTubeIframeAPIReady = () => {
-      playerRef.current = new window.YT.Player('yt-player', {
-        host: 'https://www.youtube-nocookie.com',
-        height: '100%', 
-        width: '100%',
-        videoId,
-        playerVars: { 
-          autoplay: 1,
-          controls: 0,
-          disablekb: 1,
-          fs: 0,
-          modestbranding: 1,
-          playsinline: 1, // CRITICAL for mobile/PWA playback
-          enablejsapi: 1,
-          origin: window.location.origin
-        },
-        events: { 
-          onReady: () => {
-            isReadyRef.current = true;
-            if (videoId) {
-              playerRef.current.loadVideoById(videoId);
-            }
-          },
-          onStateChange: (e) => {
-            if (onStateChangeRef.current) onStateChangeRef.current(e);
-          },
-          onError: (e) => {
-            console.error("YouTube Player Error:", e.data);
-            if (onErrorRef.current) onErrorRef.current(e.data);
-          }
-        },
-      });
-    };
-
-    if (window.YT && window.YT.Player && !playerRef.current) {
-        window.onYouTubeIframeAPIReady();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isReadyRef.current && playerRef.current && typeof playerRef.current.loadVideoById === 'function' && videoId) {
-      playerRef.current.loadVideoById(videoId);
-    }
-  }, [videoId]);
-
-  useEffect(() => {
-    if (isReadyRef.current && playerRef.current && typeof playerRef.current.playVideo === 'function') {
-      if (isPlaying) {
-        playerRef.current.playVideo();
-      } else {
-        playerRef.current.pauseVideo();
-      }
-    }
-  }, [isPlaying]);
-
-  // Progress Tracker
-  useEffect(() => {
-    let interval;
-    if (isPlaying) {
-      interval = setInterval(() => {
-        if (isReadyRef.current && playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
-          const currentTime = playerRef.current.getCurrentTime() || 0;
-          const duration = playerRef.current.getDuration() || 0;
-          if (duration > 0 && onProgressRef.current) {
-            onProgressRef.current({
-              current: currentTime,
-              duration: duration,
-              percent: (currentTime / duration) * 100
-            });
-          }
-        }
-      }, 500);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying]);
+  if (!videoId) return null;
 
   return (
-    // Fixed full screen behind app to prevent any browser throttling of invisible elements
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -100, opacity: 0.01, pointerEvents: 'none' }}>
-      <div id="yt-player" style={{ width: '100%', height: '100%' }} />
+      <ReactPlayer 
+        url={`https://www.youtube.com/watch?v=${videoId}`}
+        playing={isPlaying}
+        width="100%"
+        height="100%"
+        controls={false}
+        playsinline={true}
+        onDuration={(duration) => {
+          durationRef.current = duration;
+        }}
+        onProgress={({ playedSeconds }) => {
+          if (onProgressRef.current && durationRef.current > 0) {
+            onProgressRef.current({
+              current: playedSeconds,
+              duration: durationRef.current,
+              percent: (playedSeconds / durationRef.current) * 100
+            });
+          }
+        }}
+        onEnded={() => onStateChange({ data: 0 })}
+        onPlay={() => onStateChange({ data: 1 })}
+        onPause={() => onStateChange({ data: 2 })}
+        onError={(e) => {
+           console.error("ReactPlayer Error:", e);
+           // Simulate the code 150 (embedding restricted) so App.jsx auto-skips
+           if (onError) onError(150);
+        }}
+        config={{
+          youtube: {
+            playerVars: { 
+              origin: window.location.origin,
+              // Use nocookie to bypass browser adblockers and strict tracking prevention
+              host: 'https://www.youtube-nocookie.com'
+            }
+          }
+        }}
+      />
     </div>
   );
 }
